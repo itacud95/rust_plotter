@@ -1,8 +1,8 @@
-use std::{collections::BTreeMap, env, fs, slice::Iter};
-// use plotters::data::range;
 use plotters::prelude::*;
+use std::cmp::Ord;
+use std::{cmp::max, collections::BTreeMap, env, fs};
 
-fn read_file(filename: &String) -> BTreeMap<String, Vec<f32>> {
+fn read_file(filename: &str) -> BTreeMap<String, Vec<f32>> {
     // Read the contents of the file into a string
     let contents = fs::read_to_string(filename).expect("Unable to read file");
 
@@ -35,35 +35,46 @@ fn read_file(filename: &String) -> BTreeMap<String, Vec<f32>> {
     return map;
 }
 
-fn plot(valuesy: Vec<f32>) {
-    let root_area = BitMapBackend::new(OUT_FILE_NAME, (1024, 768)).into_drawing_area();
+fn plot(title: &String, dev_timings: Vec<f32>, org_timings: Vec<f32>) {
+    let path = OUT_FILE_NAME.to_owned() + &title.to_string() + ".png";
+    let root_area = BitMapBackend::new(&path, (1024*2, 768*2)).into_drawing_area();
 
     root_area.fill(&WHITE).unwrap();
 
-    let root_area = root_area.titled("_", ("sans-serif", 60)).unwrap();
+    let root_area = root_area.titled(&title, ("sans-serif", 20)).unwrap();
 
-    let (upper, lower) = root_area.split_vertically(512);
+    // let (upper, _lower) = root_area.split_vertically(512);
 
-    // let x_axis = (0f32..x).step(1.0);
-    let values = vec![0.0f32, 2., 4., 6., 8., 10., 5.];
-    let max_value = values
+    let dev_max = dev_timings
         .iter()
         .max_by(|x, y| x.partial_cmp(y).unwrap())
-        .unwrap()
-        .clone();
-    let mut y_valuesi32: Vec<i32> = (0..values.len() as i32).collect(); // last element will be n-1
+        .unwrap();
+    let org_max = org_timings
+        .iter()
+        .max_by(|x, y| x.partial_cmp(y).unwrap())
+        .unwrap();
+
+    let dev_sum: f32 = dev_timings.iter().sum();
+    let dev_avg = dev_sum / dev_timings.len() as f32;
+    let org_sum: f32 = org_timings.iter().sum();
+    let org_avg = org_sum / org_timings.len() as f32;
+
+    let y_valuesi32: Vec<i32> = (0..dev_timings.len() as i32).collect(); // last element will be n-1
     let y_values: Vec<f32> = y_valuesi32.iter().map(|x| *x as f32).collect();
 
-    let x = values.len() as f32;
-    let y = max_value + 5f32;
+    let x_scale = dev_timings.len() as f32 + 50f32;
+    let y_scale = if dev_avg > org_avg {
+        dev_avg.to_owned() * 2f32
+    } else {
+        org_avg.to_owned() * 2f32
+    };
 
-    let mut cc = ChartBuilder::on(&upper)
+    let mut cc = ChartBuilder::on(&root_area)
         .margin(5)
         .set_all_label_area_size(50)
-        .caption("%", ("sans-serif", 40))
-        .build_cartesian_2d(0f32..x, 0f32..y)
+        // .caption("%", ("sans-serif", 40))
+        .build_cartesian_2d(0f32..x_scale, 0f32..y_scale)
         .unwrap();
-    // .build_cartesian_2d(-3.4f32..3.4, -1.2f32..1.2f32)?;
 
     cc.configure_mesh()
         .x_labels(20)
@@ -74,29 +85,26 @@ fn plot(valuesy: Vec<f32>) {
         .draw()
         .unwrap();
 
-    // for (x, y) in values.iter().zip(y_values.iter()) {}
+    let dev_iter = y_values.iter().cloned().zip(dev_timings.iter().cloned());
 
-    let iter = y_values.iter().cloned().zip(values.iter().cloned());
+    // for (x,y) in iter.clone() {
+    //     println!("{}, {}", x, y);
+    // }
 
-    for (x,y) in iter.clone() {
-        println!("{}, {}", x, y);
-    }
+    let dev_series = LineSeries::new(dev_iter, &RGBColor(255, 0, 0));
 
-    // let iter = values.iter().zip(y_values.iter());
-    let series = LineSeries::new(iter, &RGBColor(255, 0, 0));
-    // let seriesY = LineSeries::new(values.into_iter().map(|x| (x, x)), &RGBColor(255, 0, 0));
-
-    cc.draw_series(series)
+    cc.draw_series(dev_series)
         .unwrap()
-        .label("Red label")
+        .label("Devel")
         .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &RED));
 
-    // cc.draw_series(LineSeries::new(
-    //     x_axis.values().map(|x| (x, x.cos())),
-    //     &BLUE,
-    // ))?
-    // .label("Cosine")
-    // .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &BLUE));
+    let org_iter = y_values.iter().cloned().zip(org_timings.iter().cloned());
+    let org_series = LineSeries::new(org_iter, &BLUE);
+
+    cc.draw_series(org_series)
+        .unwrap()
+        .label("Master")
+        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &BLUE));
 
     cc.configure_series_labels()
         .border_style(&BLACK)
@@ -113,18 +121,14 @@ fn plot(valuesy: Vec<f32>) {
 
     // To avoid the IO failure being ignored silently, we manually call the present function
     root_area.present().expect("Unable to write result to file, please make sure 'plotters-doc-data' dir exists under current dir");
-    println!("Result has been saved to {}", OUT_FILE_NAME);
+    println!("Result has been saved to {}", path);
 }
 
-const OUT_FILE_NAME: &'static str = "plotters-doc-data/sample.png";
+const OUT_FILE_NAME: &'static str = "plotters-doc-data/";
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let args: Vec<String> = env::args().collect();
-    if args.len() < 2 {
-        panic!("Give file to read")
-    }
-    let filename = &args[1];
-    println!("Reading file {}", filename);
-    let dev_values = read_file(filename);
+    let dev_values = read_file("dev_time");
+    let org_values = read_file("org_time");
 
     for (key, values) in dev_values.iter() {
         let sum: f32 = values.iter().sum();
@@ -133,9 +137,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             continue;
         }
         println!("{key}: count: {} avg: {}", values.len(), avg);
-        // values.sort_by(|a, b| a.partial_cmp(b).unwrap());
-        plot(values.to_vec());
-        break;
+        let org_values = org_values.get(key).unwrap();
+        plot(key, values.to_vec(), org_values.to_vec());
+        // break;
     }
 
     Ok(())
