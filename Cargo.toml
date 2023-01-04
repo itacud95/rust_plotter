@@ -1,5 +1,5 @@
 [package]
-name = "plot_example"
+name = "rust_plotter"
 version = "0.1.0"
 edition = "2021"
 

@@ -557,14 +557,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6ac9a59f73473f1b8d852421e59e64809f025994837ef743615c6d0c5b305160"
 
 [[package]]
-name = "plot_example"
-version = "0.1.0"
-dependencies = [
- "ndarray",
- "plotters",
-]
-
-[[package]]
 name = "plotters"
 version = "0.3.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -664,6 +656,14 @@ dependencies = [
  "getrandom",
  "redox_syscall",
  "thiserror",
+]
+
+[[package]]
+name = "rust_plotter"
+version = "0.1.0"
+dependencies = [
+ "ndarray",
+ "plotters",
 ]
 
 [[package]]
