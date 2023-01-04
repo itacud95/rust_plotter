@@ -62,7 +62,7 @@ fn plot(title: &String, dev_timings: Vec<f32>, org_timings: Vec<f32>) {
     let y_valuesi32: Vec<i32> = (0..dev_timings.len() as i32).collect(); // last element will be n-1
     let y_values: Vec<f32> = y_valuesi32.iter().map(|x| *x as f32).collect();
 
-    let x_scale = dev_timings.len() as f32 + 50f32;
+    let x_scale = dev_timings.len() as f32 + 5f32;
     let y_scale = if dev_avg > org_avg {
         dev_avg.to_owned() * 2f32
     } else {
